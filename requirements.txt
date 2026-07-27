@@ -1,0 +1,19 @@
+# 6-DOF Digital Twin - Python dependencies
+# Recommended Python: 3.11 (works with everything, including the USD generator).
+# The main scripts also run on 3.12 / 3.13.
+
+# --- core simulation + kinematics ---
+numpy>=1.24
+scipy>=1.10
+ikpy>=4.0
+matplotlib>=3.7
+
+# --- communication + data pipeline ---
+paho-mqtt>=2.0
+pyzmq>=25.0
+influxdb-client>=1.40
+
+# --- OPTIONAL: only needed to re-generate the Omniverse USD files ---
+# Requires Python 3.11 (no wheel on 3.14). The .usda files are already
+# included in usd/, so you usually do NOT need this.
+# usd-core>=23.11
