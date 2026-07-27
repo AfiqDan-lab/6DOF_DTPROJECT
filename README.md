@@ -1,15 +1,14 @@
 # 6-DOF Robotic Arm — Digital Twin
 
-A simulated digital twin of a 6-DOF robotic arm. You type a plain-English
+A simulated digital twin of a 6-DOF robotic arm. We type English
 command, a language model turns it into a target, the twin plans a smooth,
 collision-free path, and the arm executes it — while its live state streams to
 a database and dashboards, and can be rendered in NVIDIA Omniverse.
 
-Everything here runs **in simulation** (no physical robot required). The
-physical arm is a later phase; the twin and all its logic are complete.
+Everything here runs **in simulation** .
 
 ```
-you type a command
+type a command
   -> AI interprets it into a target (x, y, z)
   -> inverse kinematics + smooth trajectory
   -> collision check; if blocked, replan up-and-over
@@ -19,14 +18,13 @@ you type a command
 
 ---
 
-## 1. What you need
+## 1. What is needed
 
-- **Python 3.11** (recommended — runs everything). 3.12/3.13 also work for the
-  main scripts. Avoid 3.14: one optional package (`usd-core`) has no 3.14 build.
+- **Python 3.11** (recommended).
 - **Docker Desktop** — runs the MQTT broker, database, and dashboards.
-- *(Optional)* **Ollama** — for the natural-language AI. Without it, a built-in
+- **Ollama** — for the natural-language AI. Without it, a built-in
   parser is used automatically. https://ollama.com
-- *(Optional)* **NVIDIA Omniverse** with an RTX GPU — for the photorealistic 3D
+- **NVIDIA Omniverse** with an RTX GPU — for the photorealistic 3D
   view. The ready-made `.usda` files in `usd/` open with no Python.
 
 Windows note: commands below use `py -3.11` (the Windows Python launcher). On
@@ -104,7 +102,7 @@ running (`docker compose up -d`).
    ```
    py -3.11 scripts/run_live.py
    ```
-2. **Open Grafana:** http://localhost:3000 (login `admin` / `admin`). Add an
+2. **Open Grafana:** Open Grafana: http://localhost:3001 (login `admin` / `admin`). Add an
    InfluxDB data source (see troubleshooting for the exact settings), then build
    a dashboard with panels querying the `arm_state` measurement (joint angles,
    x/y/z, temp_c, current_a, collision). Set the time range to **Last 5 minutes**
@@ -123,14 +121,14 @@ py -3.11 scripts/robot_link.py        # terminal 2: twin sends a planned motion
 
 ## 6. Viewing the Omniverse 3D
 
-You don't need Python for this. In any NVIDIA Omniverse app:
+In any NVIDIA Omniverse app:
 **File → Open** → pick `usd/arm_motion.usda` or `usd/eval_showcase.usda` →
 select `/World` and press **F** to frame → press **Play** on the timeline.
-(Requires an RTX GPU and Windows 11.)
+
 
 ---
 
-## 7. Troubleshooting (read this — it saves hours)
+## 7. Troubleshooting
 
 - **`python` not recognized / opens the Store (Windows):** use `py -3.11`.
 - **PowerShell rejects `&&`:** run each command on its own line.
@@ -158,7 +156,7 @@ select `/World` and press **F** to frame → press **Play** on the timeline.
 
 ```
 6dof_dt/
-├── README.md               <- this file
+├── README.md               
 ├── requirements.txt        <- Python dependencies
 ├── docker-compose.yml      <- MQTT (Mosquitto) + InfluxDB + Grafana
 ├── mosquitto/config/       <- broker config
@@ -197,6 +195,3 @@ natural-language commands, ZMQ/MQTT communication, InfluxDB logging, Grafana
 dashboards, and Omniverse rendering. Evaluated over 500+ trials: position
 accuracy < 1 cm at 100%, zero collisions, joint accuracy 100%.
 
-Pending hardware: the ESP32 firmware for the physical arm, and re-running
-`evaluate.py` against the real robot. The virtual-robot MQTT protocol is
-already proven, so the physical arm will connect without changing the twin.
