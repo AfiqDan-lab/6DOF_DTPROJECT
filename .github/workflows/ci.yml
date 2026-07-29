@@ -1,0 +1,68 @@
+name: CI  # automatic build + regression test suite on every push / PR
+
+# CI/CD principle: every push and every pull request to main triggers a clean
+# rebuild of the environment and runs the full regression suite. A merge that
+# breaks kinematics, planning, the NLP parser, or a message contract fails here
+# and is visible before it reaches anyone else's machine.
+
+on:
+  push:
+    branches: [ main, develop, "sprint-*" ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:      # lets you re-run it by hand from the Actions tab
+
+jobs:
+  test:
+    name: Build & regression tests
+    runs-on: ubuntu-latest
+
+    # A real Mosquitto broker runs alongside the job, so the live-MQTT
+    # integration test executes in CI instead of skipping.
+    services:
+      mosquitto:
+        image: eclipse-mosquitto:2
+        ports:
+          - 1883:1883
+        options: >-
+          --health-cmd "mosquitto_sub -t '$$SYS/#' -C 1 -W 3 || exit 0"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 3
+
+    strategy:
+      matrix:
+        python-version: [ "3.11", "3.12" ]   # the versions the README supports
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Run regression suite
+        run: python -m pytest --tb=short
+
+  # Second job: prove every service image still builds. If a Dockerfile breaks,
+  # deployment breaks -- catch it in CI, not at "docker compose up" time.
+  build-images:
+    name: Build service images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the twin image
+        run: docker build -f deploy/Dockerfile.twin -t sixdof/twin:ci .
+      - name: Build the db-logger image
+        run: docker build -f deploy/Dockerfile.logger -t sixdof/logger:ci .
+      - name: Build the virtual-robot image
+        run: docker build -f deploy/Dockerfile.robot -t sixdof/robot:ci .

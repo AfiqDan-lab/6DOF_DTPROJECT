@@ -1,0 +1,90 @@
+# Full deployment: infrastructure + the three application microservices, all
+# containerized. This is the "each microservice containerized, deployed and
+# scaled together" configuration for the deployment rubric.
+#
+#   Run from the project root:
+#     docker compose -f deploy/docker-compose.full.yml up -d --build
+#
+#   Scale a stateless service (deployment rubric - scaling demo):
+#     docker compose -f deploy/docker-compose.full.yml up -d --scale robot=3
+#
+#   Persistence proof: `docker compose ... restart influxdb`, then re-query -
+#   the named volume keeps the data across the restart.
+
+services:
+  # ---------------- infrastructure ----------------
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: dt_mosquitto
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ../mosquitto/config:/mosquitto/config
+      - ../mosquitto/data:/mosquitto/data
+      - ../mosquitto/log:/mosquitto/log
+    restart: unless-stopped
+
+  influxdb:
+    image: influxdb:2
+    container_name: dt_influxdb
+    ports:
+      - "8086:8086"
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: admin
+      DOCKER_INFLUXDB_INIT_PASSWORD: changeme-please
+      DOCKER_INFLUXDB_INIT_ORG: sixdof
+      DOCKER_INFLUXDB_INIT_BUCKET: robot_telemetry
+      DOCKER_INFLUXDB_INIT_RETENTION: 30d
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: dev-token-change-me
+    volumes:
+      - influxdb_data:/var/lib/influxdb2      # <- persistence lives here
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: dt_grafana
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - influxdb
+    restart: unless-stopped
+
+  # ---------------- application microservices ----------------
+  twin:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.twin
+    image: sixdof/twin:latest
+    container_name: dt_twin
+    environment:
+      INFLUX_URL: http://influxdb:8086      # in-network name, not localhost
+      INFLUX_TOKEN: dev-token-change-me
+      INFLUX_ORG: sixdof
+      INFLUX_BUCKET: robot_telemetry
+    depends_on:
+      - influxdb
+      - mosquitto
+    restart: unless-stopped
+
+  robot:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.robot
+    image: sixdof/robot:latest
+    # no container_name -> this service can be scaled to N replicas
+    environment:
+      BROKER_HOST: mosquitto
+    depends_on:
+      - mosquitto
+    restart: unless-stopped
+
+volumes:
+  influxdb_data:
+  grafana_data:

@@ -1,0 +1,25 @@
+# Shared base image for all 6-DOF twin Python microservices.
+# Built once; the per-service Dockerfiles start FROM it so they stay tiny and
+# every service uses the identical dependency set.
+FROM python:3.11-slim
+
+# System libs ikpy/matplotlib need for headless (no-display) operation.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libgl1 libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install Python deps first so this layer caches unless requirements change.
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# The code the services share.
+COPY scripts/ ./scripts/
+COPY urdf/ ./urdf/
+
+# Headless matplotlib inside the container.
+ENV MPLBACKEND=Agg
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app/scripts

@@ -1,0 +1,51 @@
+services:
+  # ---- MQTT broker: carries robot commands + sensor feedback ----
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: dt_mosquitto
+    ports:
+      - "1883:1883"   # MQTT
+      - "9001:9001"   # MQTT over WebSockets (handy for a web UI later)
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    restart: unless-stopped
+
+  # ---- InfluxDB 2: time-series store for all telemetry ----
+  influxdb:
+    image: influxdb:2
+    container_name: dt_influxdb
+    ports:
+      - "8086:8086"
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: admin
+      DOCKER_INFLUXDB_INIT_PASSWORD: changeme-please      # <-- change before any real use
+      DOCKER_INFLUXDB_INIT_ORG: sixdof
+      DOCKER_INFLUXDB_INIT_BUCKET: robot_telemetry
+      DOCKER_INFLUXDB_INIT_RETENTION: 30d
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: dev-token-change-me  # <-- used by the Python writer in Phase 3
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+    restart: unless-stopped
+
+  # ---- Grafana: live dashboards reading from InfluxDB ----
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: dt_grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin       # login for http://localhost:3000
+      GF_INSTALL_PLUGINS: ""
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - influxdb
+    restart: unless-stopped
+
+volumes:
+  influxdb_data:
+  grafana_data:
