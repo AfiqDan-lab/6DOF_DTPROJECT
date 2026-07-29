@@ -17,19 +17,6 @@ jobs:
     name: Build & regression tests
     runs-on: ubuntu-latest
 
-    # A real Mosquitto broker runs alongside the job, so the live-MQTT
-    # integration test executes in CI instead of skipping.
-    services:
-      mosquitto:
-        image: eclipse-mosquitto:2
-        ports:
-          - 1883:1883
-        options: >-
-          --health-cmd "mosquitto_sub -t '$$SYS/#' -C 1 -W 3 || exit 0"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 3
-
     strategy:
       matrix:
         python-version: [ "3.11", "3.12" ]   # the versions the README supports
@@ -52,6 +39,8 @@ jobs:
 
       - name: Run regression suite
         run: python -m pytest --tb=short
+        # The live-MQTT integration test skips automatically when no broker is
+        # present (see tests/test_integration.py). All other tests run here.
 
   # Second job: prove every service image still builds. If a Dockerfile breaks,
   # deployment breaks -- catch it in CI, not at "docker compose up" time.
